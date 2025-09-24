@@ -1,13 +1,20 @@
 (function () {
+  // Elements
   const video = document.getElementById('camera');
   const overlay = document.getElementById('overlay');
-  const file = document.getElementById('file');
   const startBtn = document.getElementById('start');
   const resetBtn = document.getElementById('reset');
   const opacity = document.getElementById('opacity');
   const opacityVal = document.getElementById('opacityVal');
-  const app = document.getElementById('app');
   const statusEl = document.getElementById('status');
+  const file = document.getElementById('file');
+
+  const cameraFrame = document.querySelector('.camera-frame');
+  const gestureArea = cameraFrame; // we bind gestures to the frame only
+
+  const ui = document.querySelector('.ui');
+  const uiPanel = document.getElementById('uiPanel');
+  const menuToggle = document.getElementById('menuToggle');
 
   let stream = null;
 
@@ -16,14 +23,14 @@
   let pointers = new Map();
   let gestureStart = null;
 
-  // ---- Camera ----
+  // --- Camera ---
   async function startCamera() {
     try {
       if (stream) stream.getTracks().forEach(t => t.stop());
       stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
-          facingMode: { ideal: 'environment' }, // rear camera if possible
+          facingMode: { ideal: 'environment' },
           width: { ideal: 1920 },
           height: { ideal: 1080 }
         }
@@ -32,9 +39,14 @@
 
       const track = stream.getVideoTracks()[0];
       const settings = track.getSettings();
-      // If we got the rear camera, no mirroring needed. If front, we leave it as-is.
+      // Mirror only if front camera
       video.style.transform = settings.facingMode === 'environment' ? 'none' : 'scaleX(-1)';
       setStatus(settings.facingMode === 'environment' ? 'Rear camera' : 'Front camera');
+
+      // Once metadata is available, match the frame AR to the real video
+      video.addEventListener('loadedmetadata', () => {
+        applyCameraAspectToFrame();
+      }, { once: true });
     } catch (err) {
       console.error(err);
       setStatus('Camera error. Use HTTPS & allow permission.');
@@ -42,50 +54,72 @@
     }
   }
 
-  // ---- Overlay loading ----
+  // Match .camera-frame aspect-ratio to the actual stream to avoid black bars
+  function applyCameraAspectToFrame() {
+    let vw = video.videoWidth;
+    let vh = video.videoHeight;
+
+    if (!vw || !vh) {
+      const s = video.srcObject?.getVideoTracks?.()[0]?.getSettings?.() || {};
+      if (s.width && s.height) { vw = s.width; vh = s.height; }
+      else if (s.aspectRatio) { vw = s.aspectRatio; vh = 1; }
+    }
+
+    cameraFrame.style.aspectRatio = (vw && vh) ? `${vw} / ${vh}` : '3 / 4';
+  }
+
+  // Re-evaluate on orientation change
+  window.addEventListener('orientationchange', () => {
+    setTimeout(applyCameraAspectToFrame, 300);
+  });
+
+  // --- Image upload ---
   file.addEventListener('change', () => {
     const f = file.files && file.files[0];
     if (!f) return;
     const url = URL.createObjectURL(f);
     overlay.src = url;
     overlay.onload = () => {
-      // Fit image to screen initially (keep aspect ratio), slightly smaller than viewport
-      const fitScale = computeInitialScale(overlay.naturalWidth, overlay.naturalHeight);
+      const rect = cameraFrame.getBoundingClientRect();
+      const fitScale = computeInitialScale(overlay.naturalWidth, overlay.naturalHeight, rect.width, rect.height);
       state.tx = 0;
       state.ty = 0;
       state.scale = fitScale;
       state.rot = 0;
       applyTransform();
       setStatus('Image loaded');
+      URL.revokeObjectURL(url);
     };
+    // allow re-selecting the same file later
+    file.value = '';
   });
 
-  function computeInitialScale(w, h) {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const sx = vw / w;
-    const sy = vh / h;
+  function computeInitialScale(imgW, imgH, frameW, frameH) {
+    const sx = frameW / imgW;
+    const sy = frameH / imgH;
     return Math.min(sx, sy) * 0.9;
   }
 
-  // ---- Opacity ----
+  // --- Opacity ---
   function syncOpacity() {
     const v = Number(opacity.value);
     overlay.style.opacity = (v / 100).toFixed(2);
     opacityVal.textContent = `${v}%`;
   }
   opacity.addEventListener('input', syncOpacity);
-  syncOpacity(); // set default 50%
+  syncOpacity(); // default 50%
 
-  // ---- Gestures (Pointer Events) ----
-  app.addEventListener('pointerdown', onPointerDown);
-  app.addEventListener('pointermove', onPointerMove);
-  app.addEventListener('pointerup', onPointerUp);
-  app.addEventListener('pointercancel', onPointerUp);
-  app.addEventListener('pointerleave', onPointerUp);
+  // --- Gestures (bind to the camera frame only) ---
+  gestureArea.style.touchAction = 'none';
+
+  gestureArea.addEventListener('pointerdown', onPointerDown);
+  gestureArea.addEventListener('pointermove', onPointerMove);
+  gestureArea.addEventListener('pointerup', onPointerUp);
+  gestureArea.addEventListener('pointercancel', onPointerUp);
+  gestureArea.addEventListener('pointerleave', onPointerUp);
 
   function onPointerDown(e) {
-    app.setPointerCapture(e.pointerId);
+    gestureArea.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     gestureStart = snapshot();
     e.preventDefault();
@@ -156,95 +190,15 @@
       `scale(${state.scale}) rotate(${state.rot}deg)`;
   }
 
-  const cameraFrame = document.querySelector('.camera-frame');
+  // --- UI panel toggle ---
+  let menuOpen = true;
+  menuToggle?.addEventListener('click', () => {
+    menuOpen = !menuOpen;
+    ui.classList.toggle('collapsed', !menuOpen);
+    menuToggle.setAttribute('aria-expanded', String(menuOpen));
+  });
 
-async function startCamera() {
-  try {
-    if (stream) stream.getTracks().forEach(t => t.stop());
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      }
-    });
-    video.srcObject = stream;
-
-    const track = stream.getVideoTracks()[0];
-    const settings = track.getSettings();
-
-    // Mirror only if front-facing
-    video.style.transform = settings.facingMode === 'environment' ? 'none' : 'scaleX(-1)';
-    setStatus(settings.facingMode === 'environment' ? 'Rear camera' : 'Front camera');
-
-    // Apply camera aspect ratio to the frame as soon as metadata is ready
-    video.addEventListener('loadedmetadata', () => {
-      applyCameraAspectToFrame();
-    }, { once: true });
-
-  } catch (err) {
-    console.error(err);
-    setStatus('Camera error. Use HTTPS & allow permission.');
-    alert('Could not start camera. Open this over HTTPS (or localhost) and allow camera access.');
-  }
-}
-
-// Reads the true aspect ratio and sets it on the frame to avoid black bands
-function applyCameraAspectToFrame() {
-  // Prefer actual video dimensions
-  let vw = video.videoWidth;
-  let vh = video.videoHeight;
-
-  // Fallback to track settings if needed
-  if (!vw || !vh) {
-    const s = video.srcObject?.getVideoTracks?.()[0]?.getSettings?.() || {};
-    if (s.width && s.height) { vw = s.width; vh = s.height; }
-    else if (s.aspectRatio) { vw = s.aspectRatio; vh = 1; }
-  }
-
-  if (vw && vh) {
-    const ar = vw / vh;
-    // CSS aspect-ratio supports "<number> / <number>"
-    cameraFrame.style.aspectRatio = `${vw} / ${vh}`;
-    // If you want to ensure no bars appear at all costs, keep object-fit: cover on the <video>.
-    // You can switch to 'contain' if you prefer full frame with letterboxing:
-    // video.style.objectFit = 'cover';
-  } else {
-    // Leave default 3/4 if we couldn't read dimensions
-    cameraFrame.style.aspectRatio = '3 / 4';
-  }
-}
-
-const ui = document.querySelector('.ui');
-const uiPanel = document.getElementById('uiPanel');
-const menuToggle = document.getElementById('menuToggle');
-
-// Start open
-let menuOpen = true;
-
-// Toggle handler
-menuToggle.addEventListener('click', () => {
-  menuOpen = !menuOpen;
-  ui.classList.toggle('collapsed', !menuOpen);
-  menuToggle.setAttribute('aria-expanded', String(menuOpen));
-});
-
-
-function isInUI(target) {
-  return target.closest('.ui') !== null;
-}
-
-
-
-// Optional: re-evaluate on orientation change
-window.addEventListener('orientationchange', () => {
-  // Some devices keep same stream; still useful to reapply
-  setTimeout(applyCameraAspectToFrame, 300);
-});
-
-
-  // ---- Reset ----
+  // --- Reset ---
   resetBtn.addEventListener('click', () => {
     state.tx = 0; state.ty = 0; state.scale = 1; state.rot = 0;
     applyTransform();
@@ -252,7 +206,7 @@ window.addEventListener('orientationchange', () => {
     setStatus('Reset');
   });
 
-  // ---- Start camera (button + attempt on load) ----
+  // --- Start camera (button + attempt on load) ---
   startBtn.addEventListener('click', startCamera);
   if (navigator.mediaDevices?.getUserMedia) {
     // Some browsers (Android/Chrome) can start right away; iOS needs user gesture
@@ -261,13 +215,13 @@ window.addEventListener('orientationchange', () => {
     setStatus('Camera not supported.');
   }
 
-  // ---- Helpers ----
+  // --- Helpers ---
   function setStatus(msg) {
     statusEl.textContent = msg;
     clearTimeout(setStatus._t);
     setStatus._t = setTimeout(() => statusEl.textContent = '', 2500);
   }
 
-  // Prevent iOS zoom gesture default
+  // Prevent iOS page zoom gesture default
   document.addEventListener('gesturestart', e => e.preventDefault());
 })();

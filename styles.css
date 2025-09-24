@@ -9,8 +9,6 @@
   --shadow:0 10px 30px rgba(255,80,180,.25);
   --radius:16px;
   --gap:.7rem;
-
-  /* Video sizing; we switch to contain on tall/portrait phones below */
   --video-fit: cover;
 }
 
@@ -23,15 +21,9 @@ html,body{
 
 .app{
   position:fixed; inset:0; overflow:hidden;
-  touch-action:none; /* our gesture layer */
-}
-
-/* Camera background */
-video#camera{
-  position:absolute; inset:0; width:100%; height:100%;
-  object-fit: var(--video-fit);
-  background:#000; /* letter/pillar-box color when contained */
-  filter: saturate(1.05) contrast(1.02);
+  /* IMPORTANT: let default touch handling on the page.
+     We capture only on .camera-frame. */
+  touch-action:auto;
 }
 
 /* Semi-subtle vignette so the UI pops while tracing */
@@ -43,10 +35,34 @@ video#camera{
     radial-gradient(120% 85% at 50% 50%, rgba(0,0,0,0) 60%, rgba(0,0,0,.18) 100%);
 }
 
-/* Overlay image the user uploaded */
-img#overlay{
+/* Camera frame container (responsive) */
+.camera-frame {
+  position: relative;
+  width: 90%;
+  max-width: 500px;
+  aspect-ratio: 3/4;       /* JS will update to real stream AR */
+  margin: 1rem auto;
+  border: 4px solid var(--pink-2);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(255, 80, 180, 0.3);
+  /* Capture gestures only here */
+  touch-action: none;
+}
+
+/* Camera video stays inside the frame */
+.camera-frame video{
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  object-fit: var(--video-fit);
+  background:#000;
+  filter: saturate(1.05) contrast(1.02);
+}
+
+/* Overlay image */
+.camera-frame img#overlay{
   position:absolute; top:50%; left:50%;
-  transform-origin:center center; /* transform set via JS */
+  transform-origin:center center;
   max-width:none; max-height:none;
   pointer-events:none;
   opacity:.5; /* JS syncs with slider */
@@ -74,15 +90,15 @@ img#overlay{
   padding: calc(env(safe-area-inset-bottom,0) + .9rem) .9rem .9rem;
   display:flex; flex-direction:column; gap:var(--gap); align-items:center;
   z-index:10;
-
-  /* glassy card */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   background: linear-gradient(180deg, transparent, rgba(255,255,255,.06) 25%, rgba(255,255,255,.10));
   border-top: 1px solid var(--ui-border);
+  padding-left: max(.9rem, env(safe-area-inset-left,0));
+  padding-right: max(.9rem, env(safe-area-inset-right,0));
 }
 
-/* Allow normal taps inside controls (so file picker works) */
+/* Allow normal taps inside controls */
 .ui, .ui *{ touch-action:auto; pointer-events:auto; }
 
 .row{
@@ -109,7 +125,7 @@ button, .btn{
 button:active, .btn:active{ transform: translateY(1px) scale(.99); }
 button:focus-visible, .btn:focus-visible{ outline: 2px solid #fff; outline-offset: 2px; }
 
-/* Hidden file input inside a label button (reliable on mobile) */
+/* Hide raw file input when used inside a label button */
 input[type="file"]{ display:none; }
 
 /* Range slider – pink and chunky */
@@ -146,56 +162,18 @@ input[type="range"]::-moz-range-thumb{
 }
 .hint{ text-align:center; width:100%; margin-top:.2rem; opacity:.75; }
 
-/* Camera frame container */
-.camera-frame {
-  position: relative;
-  width: 90%;              /* responsive: 90% of viewport width */
-  max-width: 500px;        /* optional max so it doesn't get huge on tablets */
-  aspect-ratio: 3/4;       /* keeps camera window shape consistent */
-  margin: 1rem auto;       /* center horizontally with spacing */
-  border: 4px solid var(--pink-2);
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 8px 24px rgba(255, 80, 180, 0.3);
-}
-
-/* Camera video stays inside the frame */
-.camera-frame video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;  /* or 'contain' if you want no cropping */
-  background: #000;
-}
-
-/* Overlay image sits on top of the video */
-.camera-frame img#overlay {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform-origin: center center;
-  max-width: none;
-  max-height: none;
-  pointer-events: none;
-  opacity: .5;
-  will-change: transform, opacity;
-}
-
-
 /* --- Sliding options panel --- */
-
-/* Toggle handle */
 .ui-toggle{
   position:absolute;
   left:50%;
-  bottom: calc(100% - 12px); /* sits just above the panel edge */
+  bottom: calc(100% - 12px);
   transform: translateX(-50%);
   z-index: 11;
   appearance:none; -webkit-appearance:none;
   border:1px solid var(--ui-border);
   border-radius: 999px;
   padding:.5rem .9rem;
-  font-weight:800;
-  font-size:.95rem;
+  font-weight:800; font-size:.95rem;
   background:
     radial-gradient(120% 120% at 30% 15%, rgba(255,255,255,.9) 0%, rgba(255,255,255,.55) 50%, rgba(255,255,255,.35) 100%),
     linear-gradient(180deg, var(--pink-3), var(--pink-2));
@@ -203,49 +181,24 @@ input[type="range"]::-moz-range-thumb{
   box-shadow: 0 2px 0 rgba(255,255,255,.6) inset, var(--shadow);
   display:flex; align-items:center; gap:.5rem;
 }
-.ui-toggle .chev{
-  display:inline-block; transition: transform .2s ease;
-}
+.ui-toggle .chev{ display:inline-block; transition: transform .2s ease; }
 
-/* Panel container (already has glass background on .ui) */
-.ui{
-  padding-bottom: max(.9rem, calc(env(safe-area-inset-bottom,0) + .9rem));
-  z-index: 10;
-}
-
-.ui, .ui * { touch-action: auto; pointer-events: auto; }
-
-/* The collapsible part */
 .ui-panel{
   width:100%;
   overflow:hidden;
   transition: max-height .25s ease, opacity .2s ease, transform .25s ease;
-  max-height: 600px; /* large enough to fit content when open */
+  max-height: 600px;
   opacity: 1;
   transform: translateY(0);
 }
-
-/* Collapsed state controlled by .ui.collapsed */
 .ui.collapsed .ui-panel{
   max-height: 0;
   opacity: .0;
   transform: translateY(6px);
 }
-
-/* Rotate arrow when collapsed */
 .ui.collapsed .ui-toggle .chev{ transform: rotate(180deg); }
 
-/* Ensure UI is interactive (so file input works) */
-.ui, .ui *{ touch-action:auto; pointer-events:auto; }
-
-/* Keep the panel centered and comfy on phones */
-@media (max-width: 480px){
-  .ui-toggle{ font-size:.9rem; padding:.5rem .8rem; }
-}
-
-
-
-/* Make it really comfy on phones */
+/* Make it comfy on phones */
 @media (max-width: 480px){
   :root{ --radius:14px; }
   button, .btn{ padding:.85rem 1rem; font-size:.98rem; }
@@ -261,7 +214,3 @@ input[type="range"]::-moz-range-thumb{
 @media (min-aspect-ratio: 4/3){
   :root{ --video-fit: cover; }
 }
-
-/* Respect notches & home indicators */
-.ui{ padding-left: max(.9rem, env(safe-area-inset-left,0));
-     padding-right: max(.9rem, env(safe-area-inset-right,0)); }
