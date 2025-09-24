@@ -1,0 +1,110 @@
+:root {
+  --ui-bg: rgba(0,0,0,.5);
+  --radius: .75rem;
+  --gap: .6rem;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none; /* enables custom gestures */
+}
+
+video#camera {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+img#overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  /* transform set via JS */
+  max-width: none;
+  max-height: none;
+  pointer-events: none; /* let touches go to container */
+  opacity: .5; /* default 50% (JS syncs with slider) */
+}
+
+.status {
+  position: absolute;
+  top: .6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  background: var(--ui-bg);
+  padding: .35rem .6rem;
+  border-radius: 999px;
+  font-size: .85rem;
+  z-index: 2;
+}
+
+.ui {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 900px;
+  padding: .8rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  background: linear-gradient(180deg, transparent, var(--ui-bg) 30%, var(--ui-bg));
+  z-index: 2;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+  align-items: center;
+  justify-content: center;
+}
+
+button, .btn {
+  background: #fff;
+  color: #111;
+  border: none;
+  border-radius: var(--radius);
+  padding: .7rem .95rem;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+input[type="file"] { display: none; }
+
+input[type="range"] {
+  width: 220px;
+}
+
+.label, #opacityVal, .hint {
+  color: #fff;
+  font-size: .95rem;
+  opacity: .95;
+}
+
+.hint {
+  text-align: center;
+  width: 100%;
+  margin-top: .2rem;
+}
+
+@media (min-width: 768px) {
+  .hint { font-size: .9rem; opacity: .8; }
+}
+
+#overlay { will-change: transform, opacity; }

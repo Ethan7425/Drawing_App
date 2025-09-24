@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Phone Trace Overlay</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app" id="app">
+    <video id="camera" autoplay playsinline muted></video>
+    <img id="overlay" alt="overlay" />
+
+    <div class="status" id="status">Ready</div>
+
+    <div class="ui">
+      <div class="row">
+        <button id="start">Start camera</button>
+        <label class="btn" for="file">Upload image</label>
+        <input id="file" type="file" accept="image/*" />
+        <button id="reset">Reset</button>
+      </div>
+      <div class="row">
+        <span class="label">Opacity</span>
+        <input id="opacity" type="range" min="0" max="100" value="50" />
+        <span id="opacityVal">50%</span>
+      </div>
+      <div class="hint">Drag to move • Pinch to zoom • Two-finger rotate</div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
