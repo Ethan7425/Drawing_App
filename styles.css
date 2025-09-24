@@ -146,6 +146,43 @@ input[type="range"]::-moz-range-thumb{
 }
 .hint{ text-align:center; width:100%; margin-top:.2rem; opacity:.75; }
 
+/* Camera frame container */
+.camera-frame {
+  position: relative;
+  width: 90%;              /* responsive: 90% of viewport width */
+  max-width: 500px;        /* optional max so it doesn't get huge on tablets */
+  aspect-ratio: 3/4;       /* keeps camera window shape consistent */
+  margin: 1rem auto;       /* center horizontally with spacing */
+  border: 4px solid var(--pink-2);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(255, 80, 180, 0.3);
+}
+
+/* Camera video stays inside the frame */
+.camera-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;  /* or 'contain' if you want no cropping */
+  background: #000;
+}
+
+/* Overlay image sits on top of the video */
+.camera-frame img#overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  max-width: none;
+  max-height: none;
+  pointer-events: none;
+  opacity: .5;
+  will-change: transform, opacity;
+}
+
+
+
+
 /* Make it really comfy on phones */
 @media (max-width: 480px){
   :root{ --radius:14px; }

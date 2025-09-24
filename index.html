@@ -2,29 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#ff7ac6" />
   <title>Phone Trace Overlay</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="app" id="app">
-    <video id="camera" autoplay playsinline muted></video>
-    <img id="overlay" alt="overlay" />
+    <!-- Camera + overlay inside a frame -->
+    <div class="camera-frame">
+      <video id="camera" autoplay playsinline muted></video>
+      <img id="overlay" alt="overlay" />
+    </div>
 
-    <div class="status" id="status">Ready</div>
+    <div class="status" id="status" aria-live="polite">Ready</div>
 
-    <div class="ui">
+    <div class="ui" role="group" aria-label="Controls">
       <div class="row">
-        <button id="start">Start camera</button>
-        <label class="btn" for="file">Upload image</label>
-        <input id="file" type="file" accept="image/*" />
-        <button id="reset">Reset</button>
+        <button id="start" type="button">Start camera</button>
+        <label class="btn" aria-label="Upload image">
+          Upload image
+          <input id="file" type="file" accept="image/*" capture="environment" hidden />
+        </label>
+        <button id="reset" type="button">Reset</button>
       </div>
-      <div class="row">
+
+      <div class="row" aria-label="Opacity control">
         <span class="label">Opacity</span>
-        <input id="opacity" type="range" min="0" max="100" value="50" />
-        <span id="opacityVal">50%</span>
+        <input id="opacity" type="range" min="0" max="100" value="50" aria-label="Overlay opacity" />
+        <span id="opacityVal" aria-hidden="true">50%</span>
       </div>
+
       <div class="hint">Drag to move • Pinch to zoom • Two-finger rotate</div>
     </div>
   </div>
