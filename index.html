@@ -2,38 +2,53 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
   <meta name="theme-color" content="#ff7ac6" />
   <title>Phone Trace Overlay</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="app" id="app">
-    <!-- Camera + overlay inside a frame -->
+    <!-- Camera + overlay inside a responsive frame -->
     <div class="camera-frame">
       <video id="camera" autoplay playsinline muted></video>
       <img id="overlay" alt="overlay" />
     </div>
 
+    <!-- Status pill -->
     <div class="status" id="status" aria-live="polite">Ready</div>
 
+    <!-- Controls (slide-up panel) -->
     <div class="ui" role="group" aria-label="Controls">
-      <div class="row">
-        <button id="start" type="button">Start camera</button>
-        <label class="btn" aria-label="Upload image">
-          Upload image
-          <input id="file" type="file" accept="image/*" hidden />
-        </label>
-        <button id="reset" type="button">Reset</button>
-      </div>
+      <!-- Toggle handle above the tray -->
+      <button id="menuToggle" class="ui-toggle" aria-expanded="true" aria-controls="uiPanel" type="button">
+        <span class="chev" aria-hidden="true">▾</span>
+        <span class="label">Options</span>
+      </button>
 
-      <div class="row" aria-label="Opacity control">
-        <span class="label">Opacity</span>
-        <input id="opacity" type="range" min="0" max="100" value="50" aria-label="Overlay opacity" />
-        <span id="opacityVal" aria-hidden="true">50%</span>
-      </div>
+      <!-- Collapsible content -->
+      <div id="uiPanel" class="ui-panel">
+        <div class="row">
+          <button id="start" type="button">Start camera</button>
 
-      <div class="hint">Drag to move • Pinch to zoom • Two-finger rotate</div>
+          <!-- Reliable mobile upload: input inside label button (no capture => chooser shows) -->
+          <label class="btn" aria-label="Upload image">
+            Upload image
+            <input id="file" type="file" accept="image/*" hidden />
+          </label>
+
+          <button id="reset" type="button">Reset</button>
+        </div>
+
+        <div class="row" aria-label="Opacity control">
+          <span class="label">Opacity</span>
+          <input id="opacity" type="range" min="0" max="100" value="50" aria-label="Overlay opacity" />
+          <span id="opacityVal" aria-hidden="true">50%</span>
+        </div>
+
+        <div class="hint">Drag to move • Pinch to zoom • Two-finger rotate</div>
+      </div>
     </div>
   </div>
 

@@ -216,6 +216,46 @@ function applyCameraAspectToFrame() {
   }
 }
 
+const ui = document.querySelector('.ui');
+const uiPanel = document.getElementById('uiPanel');
+const menuToggle = document.getElementById('menuToggle');
+
+// Start open
+let menuOpen = true;
+
+// Toggle handler
+menuToggle.addEventListener('click', () => {
+  menuOpen = !menuOpen;
+  ui.classList.toggle('collapsed', !menuOpen);
+  menuToggle.setAttribute('aria-expanded', String(menuOpen));
+});
+
+
+function isInUI(target) {
+  return target.closest('.ui') !== null;
+}
+
+function onPointerDown(e) {
+  if (isInUI(e.target)) return;
+  app.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  gestureStart = snapshot();
+  e.preventDefault();
+}
+function onPointerMove(e) {
+  if (isInUI(e.target)) return;
+  if (!pointers.has(e.pointerId)) return;
+  // ... existing move logic ...
+  e.preventDefault();
+}
+function onPointerUp(e) {
+  if (isInUI(e.target)) return;
+  pointers.delete(e.pointerId);
+  gestureStart = snapshot();
+  e.preventDefault();
+}
+
+
 // Optional: re-evaluate on orientation change
 window.addEventListener('orientationchange', () => {
   // Some devices keep same stream; still useful to reapply

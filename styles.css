@@ -181,6 +181,65 @@ input[type="range"]::-moz-range-thumb{
 }
 
 
+/* --- Sliding options panel --- */
+
+/* Toggle handle */
+.ui-toggle{
+  position:absolute;
+  left:50%;
+  bottom: calc(100% - 12px); /* sits just above the panel edge */
+  transform: translateX(-50%);
+  z-index: 11;
+  appearance:none; -webkit-appearance:none;
+  border:1px solid var(--ui-border);
+  border-radius: 999px;
+  padding:.5rem .9rem;
+  font-weight:800;
+  font-size:.95rem;
+  background:
+    radial-gradient(120% 120% at 30% 15%, rgba(255,255,255,.9) 0%, rgba(255,255,255,.55) 50%, rgba(255,255,255,.35) 100%),
+    linear-gradient(180deg, var(--pink-3), var(--pink-2));
+  color:#2a0f22;
+  box-shadow: 0 2px 0 rgba(255,255,255,.6) inset, var(--shadow);
+  display:flex; align-items:center; gap:.5rem;
+}
+.ui-toggle .chev{
+  display:inline-block; transition: transform .2s ease;
+}
+
+/* Panel container (already has glass background on .ui) */
+.ui{
+  padding-bottom: max(.9rem, calc(env(safe-area-inset-bottom,0) + .9rem));
+}
+
+/* The collapsible part */
+.ui-panel{
+  width:100%;
+  overflow:hidden;
+  transition: max-height .25s ease, opacity .2s ease, transform .25s ease;
+  max-height: 600px; /* large enough to fit content when open */
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Collapsed state controlled by .ui.collapsed */
+.ui.collapsed .ui-panel{
+  max-height: 0;
+  opacity: .0;
+  transform: translateY(6px);
+}
+
+/* Rotate arrow when collapsed */
+.ui.collapsed .ui-toggle .chev{ transform: rotate(180deg); }
+
+/* Ensure UI is interactive (so file input works) */
+.ui, .ui *{ touch-action:auto; pointer-events:auto; }
+
+/* Keep the panel centered and comfy on phones */
+@media (max-width: 480px){
+  .ui-toggle{ font-size:.9rem; padding:.5rem .8rem; }
+}
+
 
 
 /* Make it really comfy on phones */
