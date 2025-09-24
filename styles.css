@@ -210,7 +210,10 @@ input[type="range"]::-moz-range-thumb{
 /* Panel container (already has glass background on .ui) */
 .ui{
   padding-bottom: max(.9rem, calc(env(safe-area-inset-bottom,0) + .9rem));
+  z-index: 10;
 }
+
+.ui, .ui * { touch-action: auto; pointer-events: auto; }
 
 /* The collapsible part */
 .ui-panel{

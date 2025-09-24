@@ -235,25 +235,6 @@ function isInUI(target) {
   return target.closest('.ui') !== null;
 }
 
-function onPointerDown(e) {
-  if (isInUI(e.target)) return;
-  app.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  gestureStart = snapshot();
-  e.preventDefault();
-}
-function onPointerMove(e) {
-  if (isInUI(e.target)) return;
-  if (!pointers.has(e.pointerId)) return;
-  // ... existing move logic ...
-  e.preventDefault();
-}
-function onPointerUp(e) {
-  if (isInUI(e.target)) return;
-  pointers.delete(e.pointerId);
-  gestureStart = snapshot();
-  e.preventDefault();
-}
 
 
 // Optional: re-evaluate on orientation change
