@@ -10,7 +10,7 @@
   const file = document.getElementById('file');
 
   const cameraFrame = document.querySelector('.camera-frame');
-  const gestureArea = cameraFrame; // we bind gestures to the frame only
+  const gestureArea = cameraFrame; // bind gestures only to the frame
 
   const ui = document.querySelector('.ui');
   const uiPanel = document.getElementById('uiPanel');
@@ -20,8 +20,8 @@
 
   // Transform state
   const state = { tx: 0, ty: 0, scale: 1, rot: 0 };
-  let pointers = new Map();
-  let gestureStart = null;
+  let pointers = new Map();     // id -> {x,y}
+  let gestureStart = null;      // snapshot of state + first two points at gesture start
 
   // --- Camera ---
   async function startCamera() {
@@ -39,11 +39,9 @@
 
       const track = stream.getVideoTracks()[0];
       const settings = track.getSettings();
-      // Mirror only if front camera
       video.style.transform = settings.facingMode === 'environment' ? 'none' : 'scaleX(-1)';
       setStatus(settings.facingMode === 'environment' ? 'Rear camera' : 'Front camera');
 
-      // Once metadata is available, match the frame AR to the real video
       video.addEventListener('loadedmetadata', () => {
         applyCameraAspectToFrame();
       }, { once: true });
@@ -54,7 +52,6 @@
     }
   }
 
-  // Match .camera-frame aspect-ratio to the actual stream to avoid black bars
   function applyCameraAspectToFrame() {
     let vw = video.videoWidth;
     let vh = video.videoHeight;
@@ -64,11 +61,9 @@
       if (s.width && s.height) { vw = s.width; vh = s.height; }
       else if (s.aspectRatio) { vw = s.aspectRatio; vh = 1; }
     }
-
     cameraFrame.style.aspectRatio = (vw && vh) ? `${vw} / ${vh}` : '3 / 4';
   }
 
-  // Re-evaluate on orientation change
   window.addEventListener('orientationchange', () => {
     setTimeout(applyCameraAspectToFrame, 300);
   });
@@ -82,16 +77,12 @@
     overlay.onload = () => {
       const rect = cameraFrame.getBoundingClientRect();
       const fitScale = computeInitialScale(overlay.naturalWidth, overlay.naturalHeight, rect.width, rect.height);
-      state.tx = 0;
-      state.ty = 0;
-      state.scale = fitScale;
-      state.rot = 0;
+      state.tx = 0; state.ty = 0; state.scale = fitScale; state.rot = 0;
       applyTransform();
       setStatus('Image loaded');
       URL.revokeObjectURL(url);
     };
-    // allow re-selecting the same file later
-    file.value = '';
+    file.value = ''; // allow selecting same file again later
   });
 
   function computeInitialScale(imgW, imgH, frameW, frameH) {
@@ -106,20 +97,28 @@
     overlay.style.opacity = (v / 100).toFixed(2);
     opacityVal.textContent = `${v}%`;
   }
-  opacity.addEventListener('input', syncOpacity);
-  syncOpacity(); // default 50%
+  opacity.addEventListener('input', syncOpacity, { passive: true });
+  syncOpacity();
 
-  // --- Gestures (bind to the camera frame only) ---
+  // === Gestures ===
+  // Prefer Pointer Events if available; also wire Touch fallback with passive:false
+  const supportsPointer = 'PointerEvent' in window;
+
+  // We ensure the *actual* targets also allow prevention
   gestureArea.style.touchAction = 'none';
+  video.style.touchAction = 'none';
 
-  gestureArea.addEventListener('pointerdown', onPointerDown);
-  gestureArea.addEventListener('pointermove', onPointerMove);
-  gestureArea.addEventListener('pointerup', onPointerUp);
-  gestureArea.addEventListener('pointercancel', onPointerUp);
-  gestureArea.addEventListener('pointerleave', onPointerUp);
+  // ---- Pointer Events path ----
+  if (supportsPointer) {
+    gestureArea.addEventListener('pointerdown', onPointerDown, { passive: false });
+    gestureArea.addEventListener('pointermove', onPointerMove, { passive: false });
+    gestureArea.addEventListener('pointerup', onPointerUp, { passive: false });
+    gestureArea.addEventListener('pointercancel', onPointerUp, { passive: false });
+    gestureArea.addEventListener('pointerleave', onPointerUp, { passive: false });
+  }
 
   function onPointerDown(e) {
-    gestureArea.setPointerCapture(e.pointerId);
+    gestureArea.setPointerCapture?.(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     gestureStart = snapshot();
     e.preventDefault();
@@ -128,37 +127,7 @@
   function onPointerMove(e) {
     if (!pointers.has(e.pointerId)) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-    if (pointers.size === 1) {
-      // Pan
-      const p = firstPointer();
-      const s = gestureStart;
-      const dx = p.x - s.p0.x;
-      const dy = p.y - s.p0.y;
-      state.tx = s.tx + dx;
-      state.ty = s.ty + dy;
-      applyTransform();
-    } else if (pointers.size >= 2) {
-      // Pinch + Rotate + Translate by centroid move
-      const [a, b] = firstTwo();
-      const s = gestureStart;
-
-      const dist0 = distance(s.p0, s.p1);
-      const dist1 = distance(a, b);
-      const scaleChange = dist1 / (dist0 || 1);
-      state.scale = clamp(s.scale * scaleChange, 0.1, 10);
-
-      const ang0 = angle(s.p0, s.p1);
-      const ang1 = angle(a, b);
-      state.rot = s.rot + (ang1 - ang0);
-
-      const c0 = midpoint(s.p0, s.p1);
-      const c1 = midpoint(a, b);
-      state.tx = s.tx + (c1.x - c0.x);
-      state.ty = s.ty + (c1.y - c0.y);
-
-      applyTransform();
-    }
+    updateTransformFromPointers();
     e.preventDefault();
   }
 
@@ -166,6 +135,73 @@
     pointers.delete(e.pointerId);
     gestureStart = snapshot();
     e.preventDefault();
+  }
+
+  // ---- Touch Events fallback (for devices where pointer events are flaky) ----
+  gestureArea.addEventListener('touchstart', onTouchStart, { passive: false });
+  gestureArea.addEventListener('touchmove', onTouchMove, { passive: false });
+  gestureArea.addEventListener('touchend', onTouchEnd, { passive: false });
+  gestureArea.addEventListener('touchcancel', onTouchEnd, { passive: false });
+
+  function onTouchStart(e) {
+    // Map touches to synthetic pointer IDs (use identifier)
+    for (let t of Array.from(e.changedTouches)) {
+      pointers.set(t.identifier, { x: t.clientX, y: t.clientY });
+    }
+    gestureStart = snapshot();
+    e.preventDefault();
+  }
+
+  function onTouchMove(e) {
+    for (let t of Array.from(e.touches)) {
+      pointers.set(t.identifier, { x: t.clientX, y: t.clientY });
+    }
+    updateTransformFromPointers();
+    e.preventDefault();
+  }
+
+  function onTouchEnd(e) {
+    for (let t of Array.from(e.changedTouches)) {
+      pointers.delete(t.identifier);
+    }
+    gestureStart = snapshot();
+    e.preventDefault();
+  }
+
+  // --- Shared gesture math ---
+  function updateTransformFromPointers() {
+    if (pointers.size === 0) return;
+
+    if (pointers.size === 1) {
+      const p = firstPointer();
+      const s = gestureStart;
+      const dx = p.x - s.p0.x;
+      const dy = p.y - s.p0.y;
+      state.tx = s.tx + dx;
+      state.ty = s.ty + dy;
+      applyTransform();
+      return;
+    }
+
+    // Use first two pointers
+    const [a, b] = firstTwo();
+    const s = gestureStart;
+
+    const dist0 = distance(s.p0, s.p1);
+    const dist1 = distance(a, b);
+    const scaleChange = dist1 / (dist0 || 1);
+    state.scale = clamp(s.scale * scaleChange, 0.1, 10);
+
+    const ang0 = angle(s.p0, s.p1);
+    const ang1 = angle(a, b);
+    state.rot = s.rot + (ang1 - ang0);
+
+    const c0 = midpoint(s.p0, s.p1);
+    const c1 = midpoint(a, b);
+    state.tx = s.tx + (c1.x - c0.x);
+    state.ty = s.ty + (c1.y - c0.y);
+
+    applyTransform();
   }
 
   function snapshot() {
@@ -206,10 +242,9 @@
     setStatus('Reset');
   });
 
-  // --- Start camera (button + attempt on load) ---
+  // --- Start camera ---
   startBtn.addEventListener('click', startCamera);
   if (navigator.mediaDevices?.getUserMedia) {
-    // Some browsers (Android/Chrome) can start right away; iOS needs user gesture
     startCamera().catch(() => {/* handled above */});
   } else {
     setStatus('Camera not supported.');
@@ -222,6 +257,6 @@
     setStatus._t = setTimeout(() => statusEl.textContent = '', 2500);
   }
 
-  // Prevent iOS page zoom gesture default
+  // Prevent iOS page-zoom gesture default (two-finger pinch on page)
   document.addEventListener('gesturestart', e => e.preventDefault());
 })();
