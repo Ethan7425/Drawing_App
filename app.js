@@ -156,6 +156,73 @@
       `scale(${state.scale}) rotate(${state.rot}deg)`;
   }
 
+  const cameraFrame = document.querySelector('.camera-frame');
+
+async function startCamera() {
+  try {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      }
+    });
+    video.srcObject = stream;
+
+    const track = stream.getVideoTracks()[0];
+    const settings = track.getSettings();
+
+    // Mirror only if front-facing
+    video.style.transform = settings.facingMode === 'environment' ? 'none' : 'scaleX(-1)';
+    setStatus(settings.facingMode === 'environment' ? 'Rear camera' : 'Front camera');
+
+    // Apply camera aspect ratio to the frame as soon as metadata is ready
+    video.addEventListener('loadedmetadata', () => {
+      applyCameraAspectToFrame();
+    }, { once: true });
+
+  } catch (err) {
+    console.error(err);
+    setStatus('Camera error. Use HTTPS & allow permission.');
+    alert('Could not start camera. Open this over HTTPS (or localhost) and allow camera access.');
+  }
+}
+
+// Reads the true aspect ratio and sets it on the frame to avoid black bands
+function applyCameraAspectToFrame() {
+  // Prefer actual video dimensions
+  let vw = video.videoWidth;
+  let vh = video.videoHeight;
+
+  // Fallback to track settings if needed
+  if (!vw || !vh) {
+    const s = video.srcObject?.getVideoTracks?.()[0]?.getSettings?.() || {};
+    if (s.width && s.height) { vw = s.width; vh = s.height; }
+    else if (s.aspectRatio) { vw = s.aspectRatio; vh = 1; }
+  }
+
+  if (vw && vh) {
+    const ar = vw / vh;
+    // CSS aspect-ratio supports "<number> / <number>"
+    cameraFrame.style.aspectRatio = `${vw} / ${vh}`;
+    // If you want to ensure no bars appear at all costs, keep object-fit: cover on the <video>.
+    // You can switch to 'contain' if you prefer full frame with letterboxing:
+    // video.style.objectFit = 'cover';
+  } else {
+    // Leave default 3/4 if we couldn't read dimensions
+    cameraFrame.style.aspectRatio = '3 / 4';
+  }
+}
+
+// Optional: re-evaluate on orientation change
+window.addEventListener('orientationchange', () => {
+  // Some devices keep same stream; still useful to reapply
+  setTimeout(applyCameraAspectToFrame, 300);
+});
+
+
   // ---- Reset ----
   resetBtn.addEventListener('click', () => {
     state.tx = 0; state.ty = 0; state.scale = 1; state.rot = 0;
